@@ -1603,7 +1603,7 @@ function moveNavPills() {
 // Skipped on touch devices + reduced-motion (native caret stays there).
 const caretMirror = (() => {
     const m = document.createElement('div');
-    m.style.cssText = 'position:absolute;visibility:hidden;white-space:pre;top:-9999px;left:0;pointer-events:none;';
+    m.style.cssText = 'position:absolute;visibility:hidden;white-space:pre;top:-9999px;left:0;pointer-events:none;display:inline-block;';
     document.documentElement.appendChild(m);
     return m;
 })();
@@ -1643,7 +1643,10 @@ function measureCaret(state) {
     const padL = parseFloat(cs.paddingLeft) || 0, bdrL = parseFloat(cs.borderLeftWidth) || 0;
     const padT = parseFloat(cs.paddingTop) || 0, bdrT = parseFloat(cs.borderTopWidth) || 0;
     const padB = parseFloat(cs.paddingBottom) || 0, bdrB = parseFloat(cs.borderBottomWidth) || 0;
-    state.tx = input.offsetLeft + bdrL + padL + caretMirror.scrollWidth - input.scrollLeft;
+    let tx = input.offsetLeft + bdrL + padL + caretMirror.scrollWidth - input.scrollLeft;
+    // Hard clamp: the twin may never leave the input box, whatever measuring says.
+    tx = Math.min(Math.max(tx, input.offsetLeft + bdrL + 1), input.offsetLeft + input.clientWidth - 3);
+    state.tx = tx;
     if (state.cx == null) state.cx = state.tx;
     // Caret height follows the TEXT size (native-like proportions), not the box.
     let top, h;
