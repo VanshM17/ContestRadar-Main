@@ -1003,13 +1003,12 @@ function hexToRgba(hex, a) {
     return `rgba(${(n >> 16) & 255},${(n >> 8) & 255},${n & 255},${a})`;
 }
 // Minimal canvas line chart (no deps) - hover any point for its rating.
-let CHART = { pts: [], hover: -1, geom: null, cx: null, cy: null, tx: 0, ty: 0, raf: null, morphing: false };
+let CHART = { pts: [], hover: -1, geom: null, cursorX: null, morphing: false };
 function drawChart(pts) {
     const next = pts || [];
     const prev = CHART.pts || [];
     CHART.hover = -1;
-    CHART.cx = CHART.cy = null;
-    stopHoverLoop();
+    CHART.cursorX = null;
     hideTip();
     const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     if (reduced || (!prev.length && !next.length)) { CHART.pts = next; renderChart(); return; }
@@ -1066,6 +1065,7 @@ function smartDate(t) {
     if (d.getFullYear() !== new Date().getFullYear()) opts.year = 'numeric';
     return d.toLocaleDateString(undefined, opts);
 }
+// Theme colors, cached — getComputedStyle() every frame forces a style recalc.
 function renderChart() {
     const cv = $('rating-chart'), empty = $('chart-empty');
     if (!cv) return;
@@ -1085,12 +1085,25 @@ function renderChart() {
     const pad = 38;
     const X = i => pad + (W - pad - 12) * (pts.length === 1 ? 0.5 : i / (pts.length - 1));
     const Y = v => 12 + (H - 52) * (1 - (v - min) / (max - min));
+// Theme colors, cached — getComputedStyle() every frame forces a style recalc.
+let THEME_CACHE = { key: '', CH: '#ff6b6b', GRID: 'rgba(255,255,255,.08)', SUB: '#8d97ab', FAINT: '#5b6478' };
+function chartTheme() {
+    const key = document.documentElement.dataset.theme || 'dark';
+    if (THEME_CACHE.key !== key) {
+        const css = getComputedStyle(document.documentElement);
+        const gv = n => (css.getPropertyValue(n) || '').trim();
+        THEME_CACHE = {
+            key,
+            CH: gv('--chart') || '#ff6b6b',
+            GRID: gv('--chart-grid') || 'rgba(255,255,255,.08)',
+            SUB: gv('--text-sub') || '#8d97ab',
+            FAINT: gv('--text-faint') || '#5b6478'
+        };
+    }
+    return THEME_CACHE;
+}
     // theme-aware colors (chart follows the active theme)
-    const css = getComputedStyle(document.documentElement);
-    const CH = (css.getPropertyValue('--chart') || '').trim() || '#ff6b6b';
-    const GRID = (css.getPropertyValue('--chart-grid') || '').trim() || 'rgba(255,255,255,.08)';
-    const SUB = (css.getPropertyValue('--text-sub') || '').trim() || '#8d97ab';
-    const FAINT = (css.getPropertyValue('--text-faint') || '').trim() || '#5b6478';
+    const { CH, GRID, SUB, FAINT } = chartTheme();
     // grid + y labels
     ctx.strokeStyle = GRID; ctx.fillStyle = SUB; ctx.font = '11px sans-serif'; ctx.lineWidth = 1;
     for (let g = 0; g <= 4; g++) {
@@ -1105,20 +1118,20 @@ function renderChart() {
     ctx.strokeStyle = CH; ctx.lineWidth = 2.5; ctx.lineJoin = 'round'; ctx.stroke();
     ctx.lineTo(X(pts.length - 1), H - 26); ctx.lineTo(X(0), H - 26); ctx.closePath();
     ctx.fillStyle = grad; ctx.fill();
-    // hover crosshair (glides on the animated cx, not the snapped point)
-    if (CHART.hover >= 0 && CHART.hover < pts.length && CHART.cx != null) {
+    // hover crosshair rides the cursor; dot snaps to the nearest point
+    const ccx = (CHART.cursorX != null && CHART.hover >= 0 && CHART.hover < pts.length)
+        ? CHART.cursorX : null;
+    if (ccx != null) {
         ctx.save();
         ctx.strokeStyle = 'rgba(255,255,255,.35)'; ctx.setLineDash([4, 4]); ctx.lineWidth = 1;
-        ctx.beginPath(); ctx.moveTo(CHART.cx, 8); ctx.lineTo(CHART.cx, H - 26); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(ccx, 8); ctx.lineTo(ccx, H - 26); ctx.stroke();
         ctx.restore();
     }
     // dots on EVERY point
     pts.forEach((p, i) => {
         if (CHART.morphing) return; // dots pop back in on settle
         const isHov = i === CHART.hover;
-        const px = (isHov && CHART.cx != null) ? CHART.cx : X(i);
-        const py = (isHov && CHART.cy != null) ? CHART.cy : Y(p.v);
-        ctx.beginPath(); ctx.arc(px, py, isHov ? 5.5 : 3, 0, 7);
+        ctx.beginPath(); ctx.arc(X(i), Y(p.v), isHov ? 5.5 : 3, 0, 7);
         ctx.fillStyle = CH; ctx.fill();
         if (isHov) { ctx.lineWidth = 2; ctx.strokeStyle = '#fff'; ctx.stroke(); }
     });
@@ -1137,7 +1150,7 @@ function renderChart() {
         ctx.fillText(label, cx, H - 8);
         lastEdge = cx + wTxt + 10;
     }
-    CHART.geom = { xs: pts.map((_, i) => X(i)), ys: pts.map(p => Y(p.v)) };
+    CHART.geom = { xs: pts.map((_, i) => X(i)), ys: pts.map(p => Y(p.v)), x0: X(0), x1: X(pts.length - 1) };
 }
 function hideTip() {
     const tip = $('chart-tip');
@@ -1147,40 +1160,19 @@ function chartHover(e) {
     const cv = $('rating-chart');
     if (!CHART.geom || !CHART.pts.length || CHART.morphing) return;
     const rect = cv.getBoundingClientRect();
-    const x = (e.clientX - rect.left);
+    const rawX = (e.clientX - rect.left);
+    // Box tracks the cursor directly (clamped to the plot); content snaps per point.
+    CHART.cursorX = Math.min(Math.max(rawX, CHART.geom.x0), CHART.geom.x1);
     const xs = CHART.geom.xs;
     let best = 0, bestD = Infinity;
-    xs.forEach((px, i) => { const d = Math.abs(px - x); if (d < bestD) { bestD = d; best = i; } });
+    xs.forEach((px, i) => { const d = Math.abs(px - rawX); if (d < bestD) { bestD = d; best = i; } });
     if (best !== CHART.hover) {
         CHART.hover = best;
         buildTip(best);
     }
-    CHART.tx = xs[best];
-    CHART.ty = CHART.geom.ys[best];
-    if (CHART.cx == null) { CHART.cx = CHART.tx; CHART.cy = CHART.ty; renderChart(); positionTip(); }
-    startHoverLoop();
+    renderChart();
+    positionTip();
     $('chart-tip').classList.remove('hidden');
-}
-function startHoverLoop() {
-    if (CHART.raf) return;
-    const step = () => {
-        const dx = CHART.tx - CHART.cx, dy = CHART.ty - CHART.cy;
-        if (Math.abs(dx) < 0.4 && Math.abs(dy) < 0.4) {
-            CHART.cx = CHART.tx; CHART.cy = CHART.ty;
-            CHART.raf = null;
-            renderChart(); positionTip();
-            return;
-        }
-        CHART.cx += dx * 0.12;
-        CHART.cy += dy * 0.12;
-        renderChart(); positionTip();
-        CHART.raf = requestAnimationFrame(step);
-    };
-    CHART.raf = requestAnimationFrame(step);
-}
-function stopHoverLoop() {
-    if (CHART.raf) cancelAnimationFrame(CHART.raf);
-    CHART.raf = null;
 }
 function buildTip(best) {
     const p = CHART.pts[best];
@@ -1194,12 +1186,12 @@ function buildTip(best) {
 }
 function positionTip() {
     const cv = $('rating-chart');
-    if (!CHART.geom || CHART.cx == null) return;
+    if (!CHART.geom || CHART.cursorX == null || CHART.hover < 0) return;
     const tip = $('chart-tip');
     const wrapW = cv.parentElement.clientWidth;
-    const tx = Math.min(Math.max(cv.offsetLeft + CHART.cx, 120), wrapW - 120);
+    const tx = Math.min(Math.max(cv.offsetLeft + CHART.cursorX, 120), wrapW - 120);
     tip.style.left = tx + 'px';
-    tip.style.top = (cv.offsetTop + CHART.cy) + 'px';
+    tip.style.top = (cv.offsetTop + CHART.geom.ys[CHART.hover]) + 'px';
 }
 
 // Calendar export (.ics, no backend needed)
@@ -1830,7 +1822,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const cv = $('rating-chart');
     cv.style.touchAction = 'pan-y';
     cv.addEventListener('pointermove', chartHover);
-    cv.addEventListener('pointerleave', () => { CHART.hover = -1; CHART.cx = CHART.cy = null; stopHoverLoop(); hideTip(); renderChart(); });
+    cv.addEventListener('pointerleave', () => { CHART.hover = -1; CHART.cursorX = null; hideTip(); renderChart(); });
 
     // analytics
     $('sync-analytics').onclick = syncAnalytics;
