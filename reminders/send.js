@@ -13,10 +13,15 @@ const WINDOWS = [
 ];
 
 if (!RESEND_KEY) throw new Error('Missing RESEND_API_KEY env');
-const svc = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT || '{}');
-if (!svc.project_id) throw new Error('Missing FIREBASE_SERVICE_ACCOUNT env');
-admin.initializeApp({ credential: admin.credential.cert(svc) });
-const db = admin.firestore();
+let db = null;
+function initDb() {
+    if (db) return db;
+    const svc = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT || '{}');
+    if (!svc.project_id) throw new Error('Missing FIREBASE_SERVICE_ACCOUNT env');
+    admin.initializeApp({ credential: admin.credential.cert(svc) });
+    db = admin.firestore();
+    return db;
+}
 
 const uid = c => (c.site + '|' + c.name + '|' + c.start_time).slice(0, 160);
 
@@ -103,6 +108,7 @@ async function main() {
         console.log('test email sent to ' + to);
         return;
     }
+    db = initDb();
     const contests = await fetchAllContests();
     const byUid = new Map(contests.map(c => [uid(c), c]));
     console.log(`loaded ${contests.length} contests`);
