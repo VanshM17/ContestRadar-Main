@@ -360,7 +360,7 @@ h1 { font-size: 25px; font-weight: 500; letter-spacing: 0.5px; color: var(--text
 }
 .contest-title {
     font-size: 19px; font-weight: 550; color: var(--text-main); line-height: 1.38; letter-spacing: 0.2px;
-    display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical;
+    display: -webkit-box; line-clamp: 3; -webkit-line-clamp: 3; -webkit-box-orient: vertical;
     overflow: hidden; text-overflow: ellipsis; margin: 14px 0;
 }
 .contest-footer { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
