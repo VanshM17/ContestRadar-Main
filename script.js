@@ -1003,12 +1003,13 @@ function hexToRgba(hex, a) {
     return `rgba(${(n >> 16) & 255},${(n >> 8) & 255},${n & 255},${a})`;
 }
 // Minimal canvas line chart (no deps) - hover any point for its rating.
-let CHART = { pts: [], hover: -1, geom: null, cursorX: null, morphing: false };
+let CHART = { pts: [], hover: -1, geom: null, cursorX: null, morphing: false, tipX: 0, tipY: 0, tipTx: 0, tipTy: 0, tipRaf: null };
 function drawChart(pts) {
     const next = pts || [];
     const prev = CHART.pts || [];
     CHART.hover = -1;
     CHART.cursorX = null;
+    stopTipLoop();
     hideTip();
     const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     if (reduced || (!prev.length && !next.length)) { CHART.pts = next; renderChart(); return; }
@@ -1161,7 +1162,7 @@ function chartHover(e) {
     if (!CHART.geom || !CHART.pts.length || CHART.morphing) return;
     const rect = cv.getBoundingClientRect();
     const rawX = (e.clientX - rect.left);
-    // Box tracks the cursor directly (clamped to the plot); content snaps per point.
+    // Crosshair tracks the cursor directly; the box glides behind it.
     CHART.cursorX = Math.min(Math.max(rawX, CHART.geom.x0), CHART.geom.x1);
     const xs = CHART.geom.xs;
     let best = 0, bestD = Infinity;
@@ -1171,8 +1172,47 @@ function chartHover(e) {
         buildTip(best);
     }
     renderChart();
-    positionTip();
-    $('chart-tip').classList.remove('hidden');
+    const tip = $('chart-tip');
+    const wrapW = cv.parentElement.clientWidth;
+    CHART.tipTx = Math.min(Math.max(cv.offsetLeft + CHART.cursorX, 120), wrapW - 120);
+    CHART.tipTy = cv.offsetTop + CHART.geom.ys[best];
+    if (tip.classList.contains('hidden')) {
+        // Appearing: snap straight to target, glide only afterwards.
+        CHART.tipX = CHART.tipTx; CHART.tipY = CHART.tipTy;
+        paintTipPos();
+        tip.classList.remove('hidden');
+    } else {
+        startTipLoop();
+    }
+}
+function paintTipPos() {
+    const tip = $('chart-tip');
+    tip.style.left = CHART.tipX + 'px';
+    tip.style.top = CHART.tipY + 'px';
+}
+function glideNum(cur, target) {
+    const d = target - cur, ad = Math.abs(d);
+    if (ad < 1) return target;
+    return cur + Math.sign(d) * Math.min(Math.max(ad * 0.28, 3), ad);
+}
+function startTipLoop() {
+    if (CHART.tipRaf) return;
+    const step = () => {
+        try {
+            const nx = glideNum(CHART.tipX, CHART.tipTx);
+            const ny = glideNum(CHART.tipY, CHART.tipTy);
+            const settled = nx === CHART.tipTx && ny === CHART.tipTy;
+            CHART.tipX = nx; CHART.tipY = ny;
+            paintTipPos();
+            if (settled) { CHART.tipRaf = null; return; }
+        } catch (err) { CHART.tipRaf = null; return; }
+        CHART.tipRaf = requestAnimationFrame(step);
+    };
+    CHART.tipRaf = requestAnimationFrame(step);
+}
+function stopTipLoop() {
+    if (CHART.tipRaf) cancelAnimationFrame(CHART.tipRaf);
+    CHART.tipRaf = null;
 }
 function buildTip(best) {
     const p = CHART.pts[best];
@@ -1184,16 +1224,6 @@ function buildTip(best) {
         <div class="tip-row">Rating <b>${p.v}</b> · <span class="${dCls}">${dTxt}</span>${p.rank != null ? ` · rank <b>${p.rank}</b>` : ''}</div>
         <div class="tip-row">${smartDate(p.t)}${p.extra ? ` · ${escapeHtml(p.extra)}` : ''}</div>`;
 }
-function positionTip() {
-    const cv = $('rating-chart');
-    if (!CHART.geom || CHART.cursorX == null || CHART.hover < 0) return;
-    const tip = $('chart-tip');
-    const wrapW = cv.parentElement.clientWidth;
-    const tx = Math.min(Math.max(cv.offsetLeft + CHART.cursorX, 120), wrapW - 120);
-    tip.style.left = tx + 'px';
-    tip.style.top = (cv.offsetTop + CHART.geom.ys[CHART.hover]) + 'px';
-}
-
 // Calendar export (.ics, no backend needed)
 function icsEscape(s) { return String(s).replace(/\\/g, '\\\\').replace(/;/g, '\\;').replace(/,/g, '\\,').replace(/\n/g, '\\n'); }
 function toICS(contests) {
@@ -1822,7 +1852,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const cv = $('rating-chart');
     cv.style.touchAction = 'pan-y';
     cv.addEventListener('pointermove', chartHover);
-    cv.addEventListener('pointerleave', () => { CHART.hover = -1; CHART.cursorX = null; hideTip(); renderChart(); });
+    cv.addEventListener('pointerleave', () => { CHART.hover = -1; CHART.cursorX = null; stopTipLoop(); hideTip(); renderChart(); });
 
     // analytics
     $('sync-analytics').onclick = syncAnalytics;
