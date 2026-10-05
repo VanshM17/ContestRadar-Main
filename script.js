@@ -186,6 +186,8 @@ function toast(title, body = '') {
     t.className = 'toast';
     t.innerHTML = `<b>${escapeHtml(title)}</b><span>${escapeHtml(body)}</span>`;
     $('toasts').appendChild(t);
+    const box = $('toasts');
+    while (box.children.length > 4) box.firstChild.remove(); // cap pile-up
     setTimeout(() => dismissToast(t), 5000);
 }
 function dismissToast(t) {
@@ -501,13 +503,36 @@ function visibleContests() {
 }
 
 let ANIM_NEXT = false; // one-shot: stagger cards on the next render (filter switches)
+let RENDERED = []; // last list actually painted — minute ticks patch text in place
+function tickCountdowns() {
+    const cards = document.querySelectorAll('#contest-list .contest-card');
+    if (!cards.length || cards.length !== RENDERED.length) { renderContests(); return; }
+    let flipped = false;
+    cards.forEach((card, i) => {
+        const c = RENDERED[i];
+        if (!c) return;
+        const st = liveState(c);
+        const cd = card.querySelector('.countdown');
+        const txt = st === 'upcoming' ? countdown(c.start_time)
+            : st === 'live' ? '● running now'
+            : st === 'virtual' ? '● virtual only' : 'ended';
+        if (cd && cd.textContent !== txt) cd.textContent = txt;
+        const badge = card.querySelector('.status-badge');
+        const want = st === 'live' ? 'live' : st === 'virtual' ? 'live-virtual' : '';
+        const got = !badge ? '' : badge.classList.contains('live') ? 'live'
+            : badge.classList.contains('live-virtual') ? 'live-virtual' : '';
+        if (badge && want !== got) flipped = true;
+    });
+    if (flipped) renderContests(); // a badge flipped state: one clean rebuild
+}
 function renderContests(anim = false) {
     if (ANIM_NEXT) { anim = true; ANIM_NEXT = false; }
     const el = $('contest-list');
     const list = visibleContests().slice(0, 12);
     $('contest-count').textContent = `${visibleContests().length} upcoming · showing ${list.length}`;
-    if (!list.length) { el.innerHTML = '<p class="empty">No contests match. Try another filter.</p>'; return; }
+    if (!list.length) { el.innerHTML = '<p class="empty">No contests match. Try another filter.</p>'; RENDERED = []; return; }
     el.innerHTML = '';
+    RENDERED = list;
     const tracked = trackedSet();
     list.forEach((contest, i) => {
         const id = uid(contest);
@@ -1046,9 +1071,10 @@ function renderChart() {
     if (!cv) return;
     const ctx = cv.getContext('2d');
     const W = cv.parentElement.clientWidth - 28, H = W < 480 ? 190 : 220;
-    cv.width = W * devicePixelRatio; cv.height = H * devicePixelRatio;
+    const DPR = Math.min(window.devicePixelRatio || 1, 2); // 4K canvases cost 4x for zero visible gain
+    cv.width = W * DPR; cv.height = H * DPR;
     cv.style.height = H + 'px';
-    ctx.setTransform(devicePixelRatio, 0, 0, devicePixelRatio, 0, 0);
+    ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
     ctx.clearRect(0, 0, W, H);
     const pts = CHART.pts;
     if (!pts.length) { empty.style.display = 'flex'; CHART.geom = null; return; }
@@ -1899,8 +1925,9 @@ document.addEventListener('DOMContentLoaded', () => {
         if (results.length) toast('Sync complete', results.map(r => (r.ok ? '✓ ' : '✗ ') + r.msg).join(' · '));
     };
 
-    // live countdown refresh (no refetch)
-    setInterval(() => { renderContests(); }, 60 * 1000);
+    // live countdown refresh: patch text in place (no rebuild, no refetch).
+    // Background tabs do nothing at all.
+    setInterval(() => { if (!document.hidden) tickCountdowns(); }, 30 * 1000);
     // chart redraw on resize
     window.addEventListener('resize', () => {
         if ($('view-analytics').classList.contains('active')) renderChart();
@@ -1921,6 +1948,6 @@ document.addEventListener('DOMContentLoaded', () => {
     if (['contests', 'analytics', 'profile'].includes(deep)) switchView(deep);
 });
 
-// Initial fetch + hourly refresh
+// Initial fetch + hourly refresh (skipped while tab is hidden)
 fetchAllContests();
-setInterval(fetchAllContests, 60 * 60 * 1000);
+setInterval(() => { if (!document.hidden) fetchAllContests(); }, 60 * 60 * 1000);
