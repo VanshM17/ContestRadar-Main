@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>About - ContestRadar</title>
+    <meta name="description" content="What ContestRadar is and how it works.">
+    <meta name="theme-color" content="#05070d">
+    <link rel="stylesheet" href="style.css">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><rect width='64' height='64' rx='14' fill='%23ff5353'/><g fill='none' stroke='white' stroke-width='5'><circle cx='32' cy='32' r='19'/><circle cx='32' cy='32' r='10'/></g><path d='M32 32L47 17' stroke='white' stroke-width='5' stroke-linecap='round'/><circle cx='32' cy='32' r='4.5' fill='white'/></svg>">
+    <script>
+    try {
+        var s = JSON.parse(localStorage.getItem('contestradar.v1') || '{}');
+        var t = s.theme || 'system';
+        document.documentElement.dataset.theme =
+            (t === 'dark' || t === 'light') ? t :
+            (window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark');
+    } catch (e) { document.documentElement.dataset.theme = 'dark'; }
+    </script>
+</head>
+<body>
+    <nav class="topnav">
+        <div class="nav-inner">
+            <a class="brand" href="index.html" title="ContestRadar home" style="text-decoration:none">
+                <span class="brand-tile"><svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="white" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="4.6"/><circle cx="12" cy="12" r="1.3" fill="white" stroke="none"/><path d="M12 12L18.5 5.5"/></svg></span>
+                <span class="brand-name">Contest<b>Radar</b></span>
+            </a>
+            <div class="nav-tabs" role="tablist">
+                <a class="nav-tab" href="index.html#contests" style="text-decoration:none">Contests</a>
+                <a class="nav-tab" href="index.html#analytics" style="text-decoration:none">Analytics</a>
+                <a class="nav-tab" href="index.html#profile" style="text-decoration:none">Profile</a>
+            </div>
+            <div class="nav-actions">
+                <a class="btn btn-primary small" href="index.html" style="text-decoration:none">Open app →</a>
+            </div>
+        </div>
+    </nav>
+    <main class="page">
+        <div class="glass card-pad doc" style="max-width:760px;margin:24px auto">
+
+            <span class="eyebrow doc-eyebrow" style="font-size:12px;font-weight:800"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><circle cx="12" cy="12" r="8.5"/><path d="M12 11v5"/><circle cx="12" cy="8" r="1.2" fill="currentColor" stroke="none"/></svg>About</span>
+            <p>ContestRadar tracks upcoming contests across <b>Codeforces, LeetCode, CodeChef and AtCoder</b> in a single schedule - then goes further: link your handles and it follows your ratings, charts your progress, and keeps a personal watchlist of the contests you care about.</p>
+            <h3>What it does</h3>
+            <ul>
+                <li><b>Contests</b> - Merges upcoming schedule from all four platforms, with live badges, countdowns, search, platform filters and rating-based eligibility on Codeforces contests.</li>
+                <li><b>Analytics</b> - Per-platform rating graphs with hover details, current / best / worst / average deltas, participation streaks, tier placement, contest history and insights.</li>
+                <li><b>Profile</b> - Your handles, connected-rating summary, and cross-device sync when signed in.</li>
+            </ul>
+            <h3>Where the data comes from</h3>
+            <ul>
+                <li>Codeforces - official public API.</li>
+                <li>LeetCode, CodeChef contests - community CompeteAPI mirror.</li>
+                <li>AtCoder contests - community Contest Hive mirror.</li>
+                <li>LeetCode ratings - community alfa API; AtCoder history - public history feed; CodeChef history - a purpose-built Cloudflare Worker that reads public profile data.</li>
+            </ul>
+            <p>Community feeds can be flaky, so the app caches aggressively and degrades gracefully - something missing usually means a mirror is down, not your account.</p>
+            <h3>How it's built</h3>
+            <p>A static frontend (no frameworks, no build step) with Google sign-in and cloud sync on Firebase, plus the Cloudflare Worker above. Your data lives under per-user security rules - nobody can read anyone else's profile.</p>
+
+        </div>
+    </main>
+    <footer class="footer">
+        <div class="foot-col">
+            <div class="brand" style="cursor:default">
+                <span class="brand-tile"><svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="white" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="4.6"/><circle cx="12" cy="12" r="1.3" fill="white" stroke="none"/><path d="M12 12L18.5 5.5"/></svg></span>
+                <span class="brand-name">Contest<b>Radar</b></span>
+            </div>
+            <p class="muted small foot-tag">Every Codeforces, LeetCode, CodeChef and AtCoder contest in one place.</p>
+            <div class="foot-platforms"><a class="f-cf" href="https://codeforces.com/" target="_blank" rel="noreferrer">Codeforces</a><span class="muted"> · </span><a class="f-lc" href="https://leetcode.com/" target="_blank" rel="noreferrer">LeetCode</a><span class="muted"> · </span><a class="f-cc" href="https://www.codechef.com/" target="_blank" rel="noreferrer">CodeChef</a><span class="muted"> · </span><a class="f-ac" href="https://atcoder.jp/" target="_blank" rel="noreferrer">AtCoder</a></div>
+        </div>
+        <div class="foot-col">
+            <div class="foot-h">About</div>
+            <a href="about.html">About us</a>
+            <a href="privacy.html">Privacy Policy</a>
+        </div>
+        <div class="foot-col">
+            <div class="foot-h">Built by</div>
+            <div class="built-name">Vansh Maheshwari</div>
+            <div class="social">
+                <a class="soc-li" href="https://www.linkedin.com/in/vansh-maheshwari/" target="_blank" rel="noreferrer" title="LinkedIn" aria-label="LinkedIn"><svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg></a>
+                <a class="soc-gh" href="https://github.com/VanshM17" target="_blank" rel="noreferrer" title="GitHub" aria-label="GitHub"><svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12"/></svg></a>
+            </div>
+        </div>
+        <div class="foot-bottom muted">© <span id="yr">2026</span> ContestRadar. All rights reserved.</div>
+    </footer>
+    <script>document.getElementById('yr').textContent = new Date().getFullYear();</script>
+    <script>
+    // Standalone nav-pill hover glide (doc pages don't load the app script).
+    (function () {
+        var bar = document.querySelector('.nav-tabs');
+        if (!bar) return;
+        var pill = document.createElement('span');
+        pill.className = 'nav-pill';
+        bar.prepend(pill);
+        var placed = false;
+        function place(el) {
+            if (!el || !el.offsetWidth) { pill.style.opacity = '0'; return; }
+            pill.style.opacity = '1';
+            pill.style.left = el.offsetLeft + 'px';
+            pill.style.top = el.offsetTop + 'px';
+            pill.style.width = el.offsetWidth + 'px';
+            pill.style.height = el.offsetHeight + 'px';
+            placed = true;
+            requestAnimationFrame(function () { pill.classList.add('ready'); });
+        }
+        var tabs = bar.querySelectorAll('.nav-tab');
+        tabs.forEach(function (t) {
+            t.addEventListener('mouseenter', function () { place(t); });
+        });
+        bar.addEventListener('mouseleave', function () { pill.style.opacity = '0'; });
+    })();
+    </script>
+</body>
+</html>
