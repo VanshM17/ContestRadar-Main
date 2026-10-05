@@ -509,6 +509,14 @@ html[data-theme="light"] .nav-pill { background: rgba(15,23,42,.07); border-colo
 }
 .footer a { text-decoration: none; font-weight: 700; transition: filter .15s ease; }
 .footer a:hover { filter: brightness(1.2); text-decoration: none; }
+/* Netlify injects a promo HUD/badge into visitor traffic on *.netlify.app hosting.
+   Its own "Hide this badge" is per-browser only — this hides it for everyone.
+   (Harmless everywhere else: these selectors match nothing off Netlify.) */
+iframe#nl-hud-frame, iframe#nl-badge-frame,
+#nl-hud-frame, #nl-badge-frame,
+.nl-hud, .nl-badge, .nl-popover, .nl-mini, .nl-wrap {
+    display: none !important;
+}
 /* Theme toggler: one tap cycles dark -> light -> system, icons morph */
 .theme-toggle {
     position: relative; width: 38px; height: 34px; flex-shrink: 0;

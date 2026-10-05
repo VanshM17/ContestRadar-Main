@@ -7,6 +7,22 @@
     <meta name="description" content="How ContestRadar collects, uses and protects your data.">
     <meta name="theme-color" content="#05070d">
     <link rel="stylesheet" href="style.css">
+    <script>
+    // Stop the host-injected promo badge before it can render (see CSS fallback).
+    (function () {
+        try {
+            var kill = function (root) {
+                root.querySelectorAll('script[src*="netlify/scripts/hud"]').forEach(function (s) { s.remove(); });
+            };
+            new MutationObserver(function (muts) {
+                muts.forEach(function (m) {
+                    m.addedNodes.forEach(function (n) { if (n.nodeType === 1) kill(n); });
+                });
+            }).observe(document.documentElement, { childList: true, subtree: true });
+            kill(document);
+        } catch (e) {}
+    })();
+    </script>
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><rect width='64' height='64' rx='14' fill='%23ff5353'/><g fill='none' stroke='white' stroke-width='5'><circle cx='32' cy='32' r='19'/><circle cx='32' cy='32' r='10'/></g><path d='M32 32L47 17' stroke='white' stroke-width='5' stroke-linecap='round'/><circle cx='32' cy='32' r='4.5' fill='white'/></svg>">
     <script>
     try {
