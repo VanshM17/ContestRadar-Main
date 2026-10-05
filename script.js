@@ -221,6 +221,13 @@ async function fetchJSON(url, timeoutMs = 12000) {
 function uid(c) { // stable id for tracking
     return (c.site + '|' + c.name + '|' + c.start_time).slice(0, 160);
 }
+// Contest URLs come from third-party mirrors — only ever open http(s).
+function safeUrl(u) {
+    try {
+        const p = new URL(String(u || ''), location.origin);
+        return (p.protocol === 'http:' || p.protocol === 'https:') ? p.href : '#';
+    } catch { return '#'; }
+}
 
 // ============================================================================
 // ORIGINAL: rating + eligibility (kept, only hardened)
@@ -528,7 +535,7 @@ function renderContests(anim = false) {
             </div>`;
         card.addEventListener('click', (e) => {
             if (e.target.closest('[data-star]')) return;
-            window.open(contest.url || '#', '_blank', 'noopener');
+            window.open(safeUrl(contest.url), '_blank', 'noopener');
         });
         el.appendChild(card);
     });
@@ -600,7 +607,7 @@ function renderTracked() {
             <button class="icon-btn" data-ics title="Download .ics"><svg viewBox='0 0 16 16' width='14' height='14' fill='none' stroke='currentColor' stroke-width='1.5'><rect x='2' y='3' width='12' height='11' rx='2'/><path d='M2 6.5h12M5.5 1.5v3M10.5 1.5v3'/></svg></button>
             <button class="icon-btn ${bellOn ? 'bell-on' : ''}" data-bell title="Email me about this contest"><svg viewBox='0 0 24 24' width='15' height='15' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'><path d='M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9'/><path d='M13.73 21a2 2 0 0 1-3.46 0'/></svg></button>
             <button class="icon-btn" data-del title="Remove">✕</button>`;
-        row.querySelector('[data-open]').onclick = () => window.open(c.url, '_blank', 'noopener');
+        row.querySelector('[data-open]').onclick = () => window.open(safeUrl(c.url), '_blank', 'noopener');
         row.querySelector('[data-ics]').onclick = () => downloadICS([c]);
         row.querySelector('[data-bell]').onclick = () => toggleNotify(c);
         row.querySelector('[data-del]').onclick = () => toggleTrack(uid(c));

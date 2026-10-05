@@ -30,7 +30,8 @@ jobs:
           FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
       - name: Send test email
         if: ${{ inputs.test_email != '' }}
-        run: node send.js --test "${{ inputs.test_email }}"
+        run: node send.js --test
         env:
           RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
           FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          TEST_EMAIL: ${{ inputs.test_email }}

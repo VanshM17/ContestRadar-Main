@@ -79,11 +79,12 @@ async function fetchAllContests() {
 function emailHtml(c, slot) {
     const when = new Date(c.start_time).toUTCString();
     const headline = slot === '24h' ? 'starts tomorrow' : 'starts in about an hour';
+    const href = /^https?:\/\//i.test(c.url || '') ? c.url : 'https://codeforces.com/contests';
     return `<div style="font-family:sans-serif;max-width:560px;margin:0 auto;background:#0b0e17;color:#f8fafc;border-radius:14px;padding:28px">
         <div style="font-size:12px;letter-spacing:2px;text-transform:uppercase;color:#ff5353;font-weight:bold">ContestRadar reminder</div>
         <h2 style="margin:10px 0 4px">${escape(c.name)} ${headline}</h2>
         <p style="color:#8d97ab">${escape(c.site)} · ${escape(when)}</p>
-        <a href="${escape(c.url)}" style="display:inline-block;margin:14px 0;background:#ff5353;color:#fff;text-decoration:none;font-weight:bold;padding:12px 22px;border-radius:10px">Open contest</a>
+        <a href="${escape(href)}" style="display:inline-block;margin:14px 0;background:#ff5353;color:#fff;text-decoration:none;font-weight:bold;padding:12px 22px;border-radius:10px">Open contest</a>
         <p style="color:#5b6478;font-size:12px;margin-top:18px">You're getting this because you rang the bell for this contest${slot === '24h' ? ' — one more email comes 1 hour before start' : ''}. Switch any bell off in ContestRadar Profile to stop these.</p>
     </div>`;
 }
@@ -95,16 +96,16 @@ async function sendEmail(to, subject, html) {
     const res = await fetch('https://api.resend.com/emails', {
         method: 'POST',
         headers: { Authorization: `Bearer ${RESEND_KEY}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ from: SENDER, to, subject, html })
+        body: JSON.stringify({ from: SENDER, to, subject: String(subject).replace(/[\r\n]+/g, ' '), html })
     });
     if (!res.ok) throw new Error(`Resend ${res.status}: ${await res.text()}`);
 }
 
 async function main() {
     const testIdx = process.argv.indexOf('--test');
-    if (testIdx >= 0) {
-        const to = process.argv[testIdx + 1];
-        if (!to || !to.includes('@')) throw new Error('Usage: node send.js --test you@example.com');
+    if (testIdx >= 0 || process.env.TEST_EMAIL) {
+        const to = process.argv[testIdx + 1] || process.env.TEST_EMAIL || '';
+        if (!to || !to.includes('@')) throw new Error('Provide a test address: node send.js --test you@example.com');
         const contests = await fetchAllContests();
         const c = contests[0] || { site: 'Codeforces', name: 'Sample Contest', start_time: Date.now() + 36e5, url: 'https://codeforces.com' };
         await sendEmail(to, `Test: ${c.name} (ContestRadar reminders work)`, emailHtml(c, '1h'));
@@ -120,9 +121,17 @@ async function main() {
     let sent = 0;
     for (const doc of snap.docs) {
         const u = doc.data();
-        if (u.emailOptIn === false || !u.email) continue;
+        if (u.emailOptIn === false) continue;
         const wanted = new Set(u.notifyList || []);
         if (!wanted.size) continue;
+        // Recipient comes from Firebase Auth, NEVER from the writable doc —
+        // otherwise anyone could point our quota at someone else's inbox.
+        let to = '';
+        try {
+            const rec = await admin.auth().getUser(doc.id);
+            to = rec.email || '';
+        } catch (e) { console.warn(`no auth user for ${doc.id}, skipping`); continue; }
+        if (!to) continue;
         const markers = { ...(u.sentReminders || {}) };
         let changed = false;
         for (const id of wanted) {
@@ -134,11 +143,11 @@ async function main() {
                 const key = id + '|' + w.slot;
                 if (markers[key]) continue;
                 if (Math.abs(diff - w.before) <= w.tol) {
-                    await sendEmail(u.email, w.subject(c), emailHtml(c, w.slot));
+                    await sendEmail(to, w.subject(c), emailHtml(c, w.slot));
                     markers[key] = Date.now();
                     changed = true;
                     sent++;
-                    console.log(`sent ${w.slot} to ${u.email} :: ${c.name}`);
+                    console.log(`sent ${w.slot} to ${to} :: ${c.name}`);
                 }
             }
         }
