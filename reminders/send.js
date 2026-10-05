@@ -5,7 +5,7 @@
 import admin from 'firebase-admin';
 import process from 'node:process';
 
-const RESEND_KEY = process.env.RESEND_API_KEY;
+const RESEND_KEY = (process.env.RESEND_API_KEY || '').trim();
 const SENDER = process.env.SENDER || 'ContestRadar <onboarding@resend.dev>';
 const WINDOWS = [
     { slot: '24h', before: 24 * 3600e3, tol: 30 * 60e3, subject: c => `Tomorrow: ${c.name}` },
@@ -13,6 +13,9 @@ const WINDOWS = [
 ];
 
 if (!RESEND_KEY) throw new Error('Missing RESEND_API_KEY env');
+if (!/^re_[A-Za-z0-9_-]{10,}$/.test(RESEND_KEY)) {
+    throw new Error(`RESEND_API_KEY looks malformed (length ${RESEND_KEY.length}) — re-paste the re_... value with no quotes, spaces or newlines`);
+}
 let db = null;
 function initDb() {
     if (db) return db;
