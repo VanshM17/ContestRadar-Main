@@ -1,5 +1,4 @@
 // ---------- Original constants (kept) ----------
-const CF_HANDLE = 'vanshmaheshwari'; // fallback default
 const SITE_COLORS = {
     'Codeforces': 'var(--cf)',
     'LeetCode': 'var(--lc)',
@@ -1262,11 +1261,11 @@ function contestsCSV() {
 // ============================================================================
 const isCloudUser = () => !!(Cloud.user && (user() || {}).cloud);
 function updateProfileGate() {
-    // Profile is account-only: guests see the sign-in gate (unless Firebase
-    // itself is unreachable — then the local form stays as offline fallback).
+    // Profile is account-only. No local fallback: without Google there is no profile.
     const gate = $('profile-gate'), cards = $('profile-cards');
     if (!gate || !cards) return;
-    const locked = Cloud.on && !isCloudUser();
+    // Profile is account-only. No local fallback: without Google there is no profile.
+    const locked = !isCloudUser();
     gate.classList.toggle('hidden', !locked);
     cards.classList.toggle('hidden', locked);
 }
@@ -1396,9 +1395,9 @@ function saveUser(patch) {
 async function fetchAllContests() {
     const listElement = $('contest-list');
     const u = user();
-    const handle = (u && u.cf) || CF_HANDLE;
-    const userRating = await getUserRating(handle).catch(() => 0);
-    try { CF_USER = await fetchCFProfile(handle).catch(() => null); } catch { CF_USER = null; }
+    const handle = (u && u.cf) || '';
+    const userRating = handle ? await getUserRating(handle).catch(() => 0) : 0;
+    try { CF_USER = handle ? await fetchCFProfile(handle).catch(() => null) : null; } catch { CF_USER = null; }
 
     const [cfContests, lcCcContests, atContests] = await Promise.all([
         fetchCodeforces(userRating), fetchLeetCodeAndCodeChef(), fetchAtCoder()
@@ -1907,17 +1906,19 @@ document.addEventListener('DOMContentLoaded', () => {
         Store.set('user', null); CF_USER = null; CF_HISTORY = []; LC_DATA = CC_DATA = AC_DATA = null; PLATFORM_RATINGS = { Codeforces: null, LeetCode: null, CodeChef: null, AtCoder: null }; refreshAuthUI(); renderAnalytics(); toast('Logged out', 'Local profile cleared.');
     };
     const startGoogleSignIn = () => {
-        if (!Cloud.on) { openAuth(); return; } // offline: local-only modal
+        if (!Cloud.on) { toast('Sign-in unavailable', 'Open the hosted site with an internet connection to sign in.'); return; }
         try {
             const provider = new window.FB.GoogleAuthProvider();
             provider.setCustomParameters({ prompt: 'select_account' });
             window.FB.signInWithPopup(window.FB.auth, provider).catch(e => {
+                const code = (e && e.code) || '';
+                if (code === 'auth/popup-closed-by-user') return; // intentional dismiss: stay silent
+                if (code === 'auth/cancelled-popup-request') return; // double-click race: stay silent
                 toast('Google sign-in failed', (/unauthorized-domain|origin/i.test(e.message || '') ?
                     'Add this domain under Authentication → Settings → Authorized domains.' :
-                    'Falling back to local profile. ' + (e.message || '')));
-                openAuth();
+                    'Please try again. ' + (e.message || '')));
             });
-        } catch (e) { openAuth(); }
+        } catch (e) { toast('Google sign-in failed', 'Please try again.'); }
     };
     $('auth-btn').onclick = startGoogleSignIn;
     const gateBtn = $('gate-signin');
@@ -1926,9 +1927,10 @@ document.addEventListener('DOMContentLoaded', () => {
     $('auth-modal').addEventListener('click', (e) => { if (e.target.id === 'auth-modal') closeAuth(); });
     $('auth-save').onclick = async () => {
         const name = $('auth-name').value.trim();
-        const cf = $('auth-cf').value.trim() || CF_HANDLE;
+        const cf = $('auth-cf').value.trim();
+        const fallbackName = (Cloud.user && Cloud.user.displayName) || 'coder';
         Store.set('user', {
-            name: name || cf, cf,
+            name: name || cf || fallbackName, cf,
             leetcode: $('auth-lc').value.trim(),
             atcoder: $('auth-ac').value.trim(),
             codechef: $('auth-cc').value.trim()
