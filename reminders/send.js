@@ -94,8 +94,8 @@ function escape(s) {
     return String(s || '').replace(/[&<>'"]/g, t => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[t] || t));
 }
 
-// Appends one timestamped stats row to the log tab (creates tab + header if missing).
-async function pushSheet(stats, users) {
+// Appends one timestamped totals row to log + rewrites the per-user roster tab.
+async function pushSheet(stats, roster) {
     const sheetId = (process.env.SHEETS_ID || '').trim();
     if (!sheetId) { console.log('no SHEETS_ID, skipping sheet push'); return; }
     const svc = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT || '{}');
@@ -105,14 +105,17 @@ async function pushSheet(stats, users) {
         ['https://www.googleapis.com/auth/spreadsheets']
     );
     const sheets = google.sheets({ version: 'v4', auth });
-    try {
-        await sheets.spreadsheets.values.get({ spreadsheetId: sheetId, range: 'log!A1' });
-    } catch {
-        await sheets.spreadsheets.batchUpdate({
-            spreadsheetId: sheetId,
-            requestBody: { requests: [{ addSheet: { properties: { title: 'log' } } }] }
-        });
-    }
+    const ensureTab = async (title) => {
+        try {
+            await sheets.spreadsheets.values.get({ spreadsheetId: sheetId, range: `${title}!A1` });
+        } catch {
+            await sheets.spreadsheets.batchUpdate({
+                spreadsheetId: sheetId,
+                requestBody: { requests: [{ addSheet: { properties: { title } } }] }
+            });
+        }
+    };
+    await ensureTab('log');
     const head = await sheets.spreadsheets.values.get({ spreadsheetId: sheetId, range: 'log!A1:I1' });
     if (!head.data.values || !head.data.values.length) {
         await sheets.spreadsheets.values.update({
@@ -122,9 +125,17 @@ async function pushSheet(stats, users) {
     }
     await sheets.spreadsheets.values.append({
         spreadsheetId: sheetId, range: 'log!A:I', valueInputOption: 'RAW', insertDataOption: 'INSERT_ROWS',
-        requestBody: { values: [[new Date().toISOString(), users, stats.cf, stats.leetcode, stats.atcoder, stats.codechef, stats.bells, stats.optedOut, stats.emailsSent]] }
+        requestBody: { values: [[new Date().toISOString(), roster.length, stats.cf, stats.leetcode, stats.atcoder, stats.codechef, stats.bells, stats.optedOut, stats.emailsSent]] }
     });
-    console.log('sheet updated');
+    await ensureTab('roster');
+    await sheets.spreadsheets.values.clear({ spreadsheetId: sheetId, range: 'roster!A:Z' });
+    const rows = [['email', 'cf', 'leetcode', 'atcoder', 'codechef', 'bells', 'handles']];
+    roster.forEach(r => rows.push([r.email, r.cf, r.leetcode, r.atcoder, r.codechef, r.bells, r.cf + r.leetcode + r.atcoder + r.codechef]));
+    await sheets.spreadsheets.values.update({
+        spreadsheetId: sheetId, range: 'roster!A1', valueInputOption: 'RAW',
+        requestBody: { values: rows }
+    });
+    console.log('sheet updated (log + roster)');
 }
 async function sendEmail(to, subject, html) {    const res = await fetch('https://api.resend.com/emails', {
         method: 'POST',
@@ -164,14 +175,22 @@ async function main() {
     console.log(`loaded ${contests.length} contests`);
     const snap = await db.collection('users').get();
     const stats = { cf: 0, leetcode: 0, atcoder: 0, codechef: 0, bells: 0, optedOut: 0, emailsSent: 0 };
+    const roster = [];
     snap.forEach(d => {
         const data = d.data() || {};
         const h = data.handles || {};
-        if (h.cf) stats.cf++;
-        if (h.leetcode) stats.leetcode++;
-        if (h.atcoder) stats.atcoder++;
-        if (h.codechef) stats.codechef++;
-        stats.bells += (data.notifyList || []).length;
+        const row = {
+            email: data.email || '',
+            cf: h.cf ? 1 : 0, leetcode: h.leetcode ? 1 : 0,
+            atcoder: h.atcoder ? 1 : 0, codechef: h.codechef ? 1 : 0,
+            bells: (data.notifyList || []).length
+        };
+        roster.push(row);
+        if (row.cf) stats.cf++;
+        if (row.leetcode) stats.leetcode++;
+        if (row.atcoder) stats.atcoder++;
+        if (row.codechef) stats.codechef++;
+        stats.bells += row.bells;
         if (data.emailOptIn === false) stats.optedOut++;
         stats.emailsSent += Object.keys(data.sentReminders || {}).length;
     });
@@ -185,7 +204,7 @@ async function main() {
         );
     } catch (e) { console.warn('stats rollup failed:', e.message); }
     // Sheet push (non-fatal by design — mail must never break over reporting).
-    try { await pushSheet(stats, snap.size); }
+    try { await pushSheet(stats, roster); }
     catch (e) { console.warn('sheet push failed:', e.message); }
     let sent = 0;
     for (const doc of snap.docs) {
