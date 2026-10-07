@@ -117,7 +117,19 @@ async function main() {
     const byUid = new Map(contests.map(c => [uid(c), c]));
     console.log(`loaded ${contests.length} contests`);
     const snap = await db.collection('users').get();
-    console.log(`checking ${snap.size} users`);
+    const stats = { cf: 0, leetcode: 0, atcoder: 0, codechef: 0, bells: 0, optedOut: 0, emailsSent: 0 };
+    snap.forEach(d => {
+        const data = d.data() || {};
+        const h = data.handles || {};
+        if (h.cf) stats.cf++;
+        if (h.leetcode) stats.leetcode++;
+        if (h.atcoder) stats.atcoder++;
+        if (h.codechef) stats.codechef++;
+        stats.bells += (data.notifyList || []).length;
+        if (data.emailOptIn === false) stats.optedOut++;
+        stats.emailsSent += Object.keys(data.sentReminders || {}).length;
+    });
+    console.log(`users=${snap.size} handles(cf/lc/ac/cc)=${stats.cf}/${stats.leetcode}/${stats.atcoder}/${stats.codechef} bells=${stats.bells} optedOut=${stats.optedOut} emailsSent(all-time)=${stats.emailsSent}`);
     let sent = 0;
     for (const doc of snap.docs) {
         const u = doc.data();
