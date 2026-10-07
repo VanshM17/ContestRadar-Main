@@ -1,6 +1,6 @@
 <div align="center">
 
-#  ContestRadar
+# ContestRadar
 
 ### Every Codeforces, LeetCode, CodeChef & AtCoder contest - tracked, analyzed, reminded.
 
@@ -30,14 +30,14 @@
 
 ---
 
-## 🖥️ Screenshots
+## Screenshots
 <img width="1869" height="999" alt="image" src="https://github.com/user-attachments/assets/e6157744-9bba-48a2-b1b9-92602ab57212" />
 <img width="1842" height="958" alt="image" src="https://github.com/user-attachments/assets/f6146e7c-2f84-48d5-98b8-338bc83bc337" />
 <img width="1869" height="999" alt="image" src="https://github.com/user-attachments/assets/f5f223d0-51c4-4dba-ba68-e979d385318f" />
 
 ---
 
-##  Architecture
+## Architecture
 
 No servers. A static frontend + Backend-as-a-Service + two serverless jobs:
 
@@ -53,7 +53,7 @@ flowchart LR
 ```
 
 | Piece | Role |
-|---|---|---|
+|---|---|
 | Static site (Netlify / Vercel / Pages) | Everything the user sees |
 | Firebase Auth + Firestore | Google login, per-user docs, owner-only rules |
 | Cloudflare Worker | CodeChef rating history proxy (public profile → JSON) |
@@ -143,7 +143,5 @@ Secrets live **only** in consoles (never in code): `RESEND_API_KEY`, `FIREBASE_S
 ---
 
 <div align="center">
-
 © 2026 ContestRadar · Built by **Vansh Maheshwari**
-
 </div>
