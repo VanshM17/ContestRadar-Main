@@ -1,0 +1,33 @@
+// Firestore rules for ContestRadar — paste into Firestore → Rules → Publish.
+// Owner-only documents + 30-day per-handle change cooldown (server-enforced).
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /users/{uid} {
+      allow read: if request.auth != null && request.auth.uid == uid;
+      allow create: if request.auth != null && request.auth.uid == uid;
+      allow update: if request.auth != null && request.auth.uid == uid
+        && cooldownOk('cf') && cooldownOk('leetcode')
+        && cooldownOk('atcoder') && cooldownOk('codechef');
+    }
+  }
+  function oldHandle(f) {
+    return ('handles' in resource.data && f in resource.data.handles)
+      ? resource.data.handles[f] : '';
+  }
+  function newHandle(f) {
+    return ('handles' in request.resource.data && f in request.resource.data.handles)
+      ? request.resource.data.handles[f] : '';
+  }
+  function oldLock(f) {
+    return ('handleLock' in resource.data && f in resource.data.handleLock)
+      ? resource.data.handleLock[f] : null;
+  }
+  function cooldownOk(f) {
+    return oldHandle(f) == '' || newHandle(f) == oldHandle(f)
+      || oldLock(f) == null
+      || !(oldLock(f) is timestamp)
+      || request.time < oldLock(f) + duration.value(2, 'h')
+      || request.time > oldLock(f) + duration.value(30, 'd');
+  }
+}
