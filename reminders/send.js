@@ -130,6 +130,14 @@ async function main() {
         stats.emailsSent += Object.keys(data.sentReminders || {}).length;
     });
     console.log(`users=${snap.size} handles(cf/lc/ac/cc)=${stats.cf}/${stats.leetcode}/${stats.atcoder}/${stats.codechef} bells=${stats.bells} optedOut=${stats.optedOut} emailsSent(all-time)=${stats.emailsSent}`);
+    // Published rollup: visible in Firebase console at Firestore Data → stats → latest.
+    // Clients can't read/write it (no rule allows it); the cron writes with Admin SDK.
+    try {
+        await db.collection('stats').doc('latest').set(
+            { ...stats, users: snap.size, updatedAt: admin.firestore.FieldValue.serverTimestamp() },
+            { merge: true }
+        );
+    } catch (e) { console.warn('stats rollup failed:', e.message); }
     let sent = 0;
     for (const doc of snap.docs) {
         const u = doc.data();
