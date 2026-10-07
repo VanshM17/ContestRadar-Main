@@ -1,8 +1,8 @@
 <div align="center">
 
-# 📡 ContestRadar
+# ContestRadar
 
-### Every Codeforces, LeetCode, CodeChef & AtCoder contest — tracked, analyzed, reminded.
+### Every Codeforces, LeetCode, CodeChef & AtCoder contest - tracked, analyzed, reminded.
 
 [![Live Demo](https://img.shields.io/badge/demo-live-ff5353?style=for-the-badge&logo=google-chrome&logoColor=white)](https://contest-radar.netlify.app)
 ![Vanilla JS](https://img.shields.io/badge/javascript-vanilla-F7DF1E?style=flat-square&logo=javascript&logoColor=black)
@@ -11,47 +11,35 @@
 ![Cloudflare Workers](https://img.shields.io/badge/edge-cloudflare_workers-F38020?style=flat-square&logo=cloudflare&logoColor=white)
 ![GitHub Actions](https://img.shields.io/badge/cron-github_actions-2088FF?style=flat-square&logo=githubactions&logoColor=white)
 
-*ContestRadar started life as a [Lively Wallpaper](https://github.com/rocksdanister/lively) desktop widget. It grew up into a full product — accounts, cross-device sync, per-platform rating analytics, and real email reminders — while the same files still run as your wallpaper.*
+*ContestRadar started life as a [Lively Wallpaper](https://github.com/rocksdanister/lively) desktop widget. It grew up into a full product - accounts, cross-device sync, per-platform rating analytics, and real email reminders - while the same files still run as your wallpaper.*
 
 </div>
 
 ---
 
-## ✨ Features
+## Features
 
 <table>
-<tr><td>📅 <b>Contests</b></td><td>Merged upcoming schedule from all four platforms — live badges (<code>LIVE · Join now</code> / <code>LIVE · Virtual only</code> for late CF rounds), countdowns, search, platform + live filters, CF rating-based eligibility</td></tr>
-<tr><td>👤 <b>Accounts</b></td><td>Google Sign-In only. Link CF / LeetCode / AtCoder / CodeChef handles once — synced to Firestore, restored on any device. Platform handles carry a 30-day change cooldown, enforced in security rules</td></tr>
-<tr><td>📊 <b>Analytics</b></td><td>Per-platform rating graphs with hover tooltips, animated count-up stats, morphing curves, rank-colored CURRENT (CF / LC / AtCoder / CodeChef palettes), streaks, tier placement, history tables, insights, CSV export</td></tr>
-<tr><td>🔔 <b>Reminders</b></td><td>Star to track, ring the bell to subscribe — cron emails you 24h + 1h before, with per-contest opt-out, global kill-switch, and dedupe markers</td></tr>
-<tr><td>🎨 <b>Themes</b></td><td>Dark / Light / System (OS-following), persisted per account, zero flash</td></tr>
-<tr><td>📈 <b>Founder stats</b></td><td>Hourly rollup to Firestore <code>stats/latest</code> + per-user roster CSV artifact + auto-updating Google Sheet (totals log + per-user roster)</td></tr>
+<tr><td> <b>Contests</b></td><td>Merged upcoming schedule from all four platforms - live badges (<code>LIVE · Join now</code> / <code>LIVE · Virtual only</code> for late CF rounds), countdowns, search, platform + live filters, CF rating-based eligibility</td></tr>
+<tr><td> <b>Accounts</b></td><td>Google Sign-In only. Link CF / LeetCode / AtCoder / CodeChef handles once - synced to Firestore, restored on any device. Platform handles carry a 30-day change cooldown, enforced in security rules</td></tr>
+<tr><td> <b>Analytics</b></td><td>Per-platform rating graphs with hover tooltips, animated count-up stats, morphing curves, rank-colored CURRENT (CF / LC / AtCoder / CodeChef palettes), streaks, tier placement, history tables, insights, CSV export</td></tr>
+<tr><td> <b>Reminders</b></td><td>Star to track, ring the bell to subscribe - cron emails you 24h + 1h before, with per-contest opt-out, global kill-switch, and dedupe markers</td></tr>
+<tr><td> <b>Themes</b></td><td>Dark / Light / System (OS-following), persisted per account, zero flash</td></tr>
+<tr><td> <b>Founder stats</b></td><td>Hourly rollup to Firestore <code>stats/latest</code> + per-user roster CSV artifact + auto-updating Google Sheet (totals log + per-user roster)</td></tr>
 </table>
 
 ---
 
-## 🖥️ Screenshots
-
-> Drop your captures in `docs/screenshots/` and point these at them.
-
-| Contests | Analytics |
-|---|---|
-| ![Contests](docs/screenshots/contests.png) | ![Analytics](docs/screenshots/analytics.png) |
-
-<details>
-<summary><b>More views</b></summary>
-
-| Profile | Light mode |
-|---|---|
-| ![Profile](docs/screenshots/profile.png) | ![Light](docs/screenshots/light.png) |
-
-</details>
+## Screenshots
+<img width="1869" height="999" alt="image" src="https://github.com/user-attachments/assets/e6157744-9bba-48a2-b1b9-92602ab57212" />
+<img width="1842" height="958" alt="image" src="https://github.com/user-attachments/assets/f6146e7c-2f84-48d5-98b8-338bc83bc337" />
+<img width="1869" height="999" alt="image" src="https://github.com/user-attachments/assets/f5f223d0-51c4-4dba-ba68-e979d385318f" />
 
 ---
 
-## 🏗️ Architecture
+##  Architecture
 
-No servers to babysit. A static frontend + Backend-as-a-Service + two serverless jobs:
+No servers. A static frontend + Backend-as-a-Service + two serverless jobs:
 
 ```mermaid
 flowchart LR
@@ -64,17 +52,17 @@ flowchart LR
     CRON -->|rollup| FB
 ```
 
-| Piece | Role | Cost |
-|---|---|---|
-| Static site (Netlify / Vercel / Pages) | Everything the user sees | $0 |
-| Firebase Auth + Firestore | Google login, per-user docs, owner-only rules | $0 at this scale |
-| Cloudflare Worker | CodeChef rating history proxy (public profile → JSON) | $0 |
-| GitHub Actions cron | Reminder emails, stats rollup, roster CSV, Sheet push | $0 (public repo) |
-| Resend | Transactional email (`ContestRadar <onboarding@resend.dev>`) | $0 (100/day free) |
+| Piece | Role |
+|---|---|
+| Static site (Netlify / Vercel / Pages) | Everything the user sees |
+| Firebase Auth + Firestore | Google login, per-user docs, owner-only rules |
+| Cloudflare Worker | CodeChef rating history proxy (public profile → JSON) |
+| GitHub Actions cron | Reminder emails, stats rollup, roster CSV, Sheet push |
+| Resend | Transactional email (`ContestRadar <onboarding@resend.dev>`) |
 
 ---
 
-## 🚀 Getting started
+##  Getting started
 
 ### Run it locally
 
@@ -82,7 +70,7 @@ flowchart LR
 npx serve -l 3000   # then open http://localhost:3000
 ```
 
-> Google sign-in requires `http(s)` — it will not work over `file://`. `localhost` is pre-authorized by Firebase.
+> Google sign-in requires `http(s)` - it will not work over `file://`. `localhost` is pre-authorized by Firebase.
 
 ### Wire your own backend (5 steps)
 
@@ -90,7 +78,7 @@ npx serve -l 3000   # then open http://localhost:3000
 2. **CodeChef Worker**: paste [`docs/codechef-worker.js`](docs/codechef-worker.js) into a Cloudflare Worker → set `CC_PROXY_URL` in [`script.js`](script.js).
 3. **Reminders**: [Resend](https://resend.com) API key → repo secrets `RESEND_API_KEY` + `FIREBASE_SERVICE_ACCOUNT` (+ optional `SHEETS_ID`) → the [`reminders`](.github/workflows/reminders.yml) workflow runs hourly; dispatch manually with `test_email` to verify.
 4. **Sheet (optional)**: enable Google Sheets API → share a sheet with the service-account email → `SHEETS_ID` secret → hourly `log` + `roster` tabs fill themselves.
-5. **Deploy**: push to `master` — Netlify/Vercel/Cloudflare Pages all serve it with zero config. Add the production domain to Firebase **Authorized domains** or login breaks in prod.
+5. **Deploy**: push to `master` - Netlify/Vercel/Cloudflare Pages all serve it with zero config. Add the production domain to Firebase **Authorized domains** or login breaks in prod.
 
 ### Project structure
 
@@ -109,7 +97,7 @@ npx serve -l 3000   # then open http://localhost:3000
     └── reminders.yml          # hourly cron + manual dispatch (test / CSV export)
 ```
 
-Secrets live **only** in consoles (never in code): `RESEND_API_KEY`, `FIREBASE_SERVICE_ACCOUNT`, `SHEETS_ID`. The Firebase `apiKey` in [`firebase-init.js`](firebase-init.js) is public by design — the security boundary is Firestore rules + authorized domains, not the key.
+Secrets live **only** in consoles (never in code): `RESEND_API_KEY`, `FIREBASE_SERVICE_ACCOUNT`, `SHEETS_ID`. The Firebase `apiKey` in [`firebase-init.js`](firebase-init.js) is public by design - the security boundary is Firestore rules + authorized domains, not the key.
 
 ---
 
@@ -126,16 +114,16 @@ Secrets live **only** in consoles (never in code): `RESEND_API_KEY`, `FIREBASE_S
 
 ---
 
-## 🔒 Security model
+## Security model
 
 - Per-user Firestore rules (`request.auth.uid == uid`) + 30-day handle-change cooldown enforced **server-side** (timestamps, grace window, legacy-safe)
-- Google-only auth — no passwords to leak or migrate; OAuth identities are provider-portable
+- Google-only auth - no passwords to leak or migrate; OAuth identities are provider-portable
 - Reminder recipients resolved from Firebase Auth, never from writable docs (no inbox-spoofing via own profile)
 - Contest URLs gated to `http(s)` (community feeds are untrusted input); all renders escaped; secrets never in code, logs, or chat
 
 ---
 
-## 🧭 Roadmap
+## Roadmap
 
 - [ ] Push notifications (FCM) alongside email
 - [ ] Leaderboards + verified-handle badges
@@ -145,17 +133,15 @@ Secrets live **only** in consoles (never in code): `RESEND_API_KEY`, `FIREBASE_S
 
 ---
 
-## 🙏 Acknowledgements
+## Acknowledgements
 
-- [Lively Wallpaper](https://github.com/rocksdanister/lively) — where this started
-- Codeforces, LeetCode, CodeChef, AtCoder — for the contests
-- CompeteAPI, Contest Hive, alfa API — community data feeds
-- Firebase, Cloudflare, Resend, GitHub Actions — free tiers carrying a real product
+- [Lively Wallpaper](https://github.com/rocksdanister/lively) - where this started initially
+- Codeforces, LeetCode, CodeChef, AtCoder - for the contests
+- CompeteAPI, Contest Hive, alfa API - community data feeds
+- Firebase, Cloudflare, Resend, GitHub Actions - free tiers carrying a real product
 
 ---
 
 <div align="center">
-
 © 2026 ContestRadar · Built by **Vansh Maheshwari**
-
 </div>
