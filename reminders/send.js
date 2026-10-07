@@ -129,8 +129,8 @@ async function pushSheet(stats, roster) {
     });
     await ensureTab('roster');
     await sheets.spreadsheets.values.clear({ spreadsheetId: sheetId, range: 'roster!A:Z' });
-    const rows = [['email', 'cf', 'leetcode', 'atcoder', 'codechef', 'bells', 'handles']];
-    roster.forEach(r => rows.push([r.email, r.cf, r.leetcode, r.atcoder, r.codechef, r.bells, r.cf + r.leetcode + r.atcoder + r.codechef]));
+    const rows = [['email', 'uid', 'cf', 'leetcode', 'atcoder', 'codechef', 'bells', 'handles']];
+    roster.forEach(r => rows.push([r.email, r.id, r.cf, r.leetcode, r.atcoder, r.codechef, r.bells, r.cf + r.leetcode + r.atcoder + r.codechef]));
     await sheets.spreadsheets.values.update({
         spreadsheetId: sheetId, range: 'roster!A1', valueInputOption: 'RAW',
         requestBody: { values: rows }
@@ -180,7 +180,7 @@ async function main() {
         const data = d.data() || {};
         const h = data.handles || {};
         const row = {
-            email: data.email || '',
+            email: data.email || '', id: d.id,
             cf: h.cf ? 1 : 0, leetcode: h.leetcode ? 1 : 0,
             atcoder: h.atcoder ? 1 : 0, codechef: h.codechef ? 1 : 0,
             bells: (data.notifyList || []).length
