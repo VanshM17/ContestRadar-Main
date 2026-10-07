@@ -4,6 +4,7 @@
 // markers so nothing ever double-fires. Usage: node send.js [--test you@mail].
 import admin from 'firebase-admin';
 import process from 'node:process';
+import fs from 'node:fs/promises';
 
 const RESEND_KEY = (process.env.RESEND_API_KEY || '').trim();
 const SENDER = process.env.SENDER || 'ContestRadar <onboarding@resend.dev>';
@@ -113,6 +114,19 @@ async function main() {
         return;
     }
     db = initDb();
+    const csvIdx = process.argv.indexOf('--export-csv');
+    if (csvIdx >= 0) {
+        const out = process.argv[csvIdx + 1] || 'roster.csv';
+        const snap = await db.collection('users').get();
+        const rows = [['uid', 'cf', 'leetcode', 'codechef', 'atcoder']];
+        snap.forEach(d => {
+            const h = (d.data() || {}).handles || {};
+            rows.push([d.id, h.cf ? 1 : 0, h.leetcode ? 1 : 0, h.codechef ? 1 : 0, h.atcoder ? 1 : 0]);
+        });
+        await fs.writeFile(out, rows.map(r => r.join(',')).join('\n'));
+        console.log(`wrote ${rows.length - 1} users to ${out}`);
+        return;
+    }
     const contests = await fetchAllContests();
     const byUid = new Map(contests.map(c => [uid(c), c]));
     console.log(`loaded ${contests.length} contests`);

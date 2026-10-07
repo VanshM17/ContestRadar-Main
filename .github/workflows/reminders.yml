@@ -9,6 +9,11 @@ on:
         description: 'Send an immediate test email (leave empty for the normal run)'
         required: false
         default: ''
+      export_csv:
+        description: 'Export the UID x handles roster as CSV instead of sending'
+        required: false
+        default: false
+        type: boolean
 
 jobs:
   send:
@@ -23,7 +28,7 @@ jobs:
           node-version: 20
       - run: npm install
       - name: Send due reminders
-        if: ${{ inputs.test_email == '' }}
+        if: ${{ inputs.test_email == '' && !inputs.export_csv }}
         run: node send.js
         env:
           RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
@@ -35,3 +40,13 @@ jobs:
           RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
           FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
           TEST_EMAIL: ${{ inputs.test_email }}
+      - name: Export roster CSV
+        if: ${{ inputs.export_csv }}
+        run: node send.js --export-csv roster.csv
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+      - uses: actions/upload-artifact@v4
+        if: ${{ inputs.export_csv }}
+        with:
+          name: handle-roster
+          path: reminders/roster.csv
