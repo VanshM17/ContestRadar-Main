@@ -31,21 +31,9 @@
 ---
 
 ## 🖥️ Screenshots
-
-> Drop your captures in `docs/screenshots/` and point these at them.
-
-| Contests | Analytics |
-|---|---|
-| ![Contests](docs/screenshots/contests.png) | ![Analytics](docs/screenshots/analytics.png) |
-
-<details>
-<summary><b>More views</b></summary>
-
-| Profile | Light mode |
-|---|---|
-| ![Profile](docs/screenshots/profile.png) | ![Light](docs/screenshots/light.png) |
-
-</details>
+<img width="1869" height="999" alt="image" src="https://github.com/user-attachments/assets/e6157744-9bba-48a2-b1b9-92602ab57212" />
+<img width="1842" height="958" alt="image" src="https://github.com/user-attachments/assets/f6146e7c-2f84-48d5-98b8-338bc83bc337" />
+<img width="1869" height="999" alt="image" src="https://github.com/user-attachments/assets/f5f223d0-51c4-4dba-ba68-e979d385318f" />
 
 ---
 
