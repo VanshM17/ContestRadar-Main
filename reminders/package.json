@@ -4,6 +4,7 @@
   "type": "module",
   "description": "Scheduled reminder emails for ContestRadar (cron). Deps: firebase-admin only; Resend via plain fetch.",
   "dependencies": {
-    "firebase-admin": "^12.7.0"
+    "firebase-admin": "^12.7.0",
+    "googleapis": "^128.0.0"
   }
 }

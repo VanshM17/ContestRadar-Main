@@ -5,6 +5,7 @@
 import admin from 'firebase-admin';
 import process from 'node:process';
 import fs from 'node:fs/promises';
+import { google } from 'googleapis';
 
 const RESEND_KEY = (process.env.RESEND_API_KEY || '').trim();
 const SENDER = process.env.SENDER || 'ContestRadar <onboarding@resend.dev>';
@@ -93,8 +94,39 @@ function escape(s) {
     return String(s || '').replace(/[&<>'"]/g, t => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[t] || t));
 }
 
-async function sendEmail(to, subject, html) {
-    const res = await fetch('https://api.resend.com/emails', {
+// Appends one timestamped stats row to the log tab (creates tab + header if missing).
+async function pushSheet(stats, users) {
+    const sheetId = (process.env.SHEETS_ID || '').trim();
+    if (!sheetId) { console.log('no SHEETS_ID, skipping sheet push'); return; }
+    const svc = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT || '{}');
+    if (!svc.client_email || !svc.private_key) throw new Error('service account missing client_email/private_key');
+    const auth = new google.auth.JWT(
+        svc.client_email, null, svc.private_key,
+        ['https://www.googleapis.com/auth/spreadsheets']
+    );
+    const sheets = google.sheets({ version: 'v4', auth });
+    try {
+        await sheets.spreadsheets.values.get({ spreadsheetId: sheetId, range: 'log!A1' });
+    } catch {
+        await sheets.spreadsheets.batchUpdate({
+            spreadsheetId: sheetId,
+            requestBody: { requests: [{ addSheet: { properties: { title: 'log' } } }] }
+        });
+    }
+    const head = await sheets.spreadsheets.values.get({ spreadsheetId: sheetId, range: 'log!A1:I1' });
+    if (!head.data.values || !head.data.values.length) {
+        await sheets.spreadsheets.values.update({
+            spreadsheetId: sheetId, range: 'log!A1:I1', valueInputOption: 'RAW',
+            requestBody: { values: [['timestamp', 'users', 'cf', 'leetcode', 'atcoder', 'codechef', 'bells', 'optedOut', 'emailsSent']] }
+        });
+    }
+    await sheets.spreadsheets.values.append({
+        spreadsheetId: sheetId, range: 'log!A:I', valueInputOption: 'RAW', insertDataOption: 'INSERT_ROWS',
+        requestBody: { values: [[new Date().toISOString(), users, stats.cf, stats.leetcode, stats.atcoder, stats.codechef, stats.bells, stats.optedOut, stats.emailsSent]] }
+    });
+    console.log('sheet updated');
+}
+async function sendEmail(to, subject, html) {    const res = await fetch('https://api.resend.com/emails', {
         method: 'POST',
         headers: { Authorization: `Bearer ${RESEND_KEY}`, 'Content-Type': 'application/json' },
         body: JSON.stringify({ from: SENDER, to, subject: String(subject).replace(/[\r\n]+/g, ' '), html })
@@ -152,6 +184,9 @@ async function main() {
             { merge: true }
         );
     } catch (e) { console.warn('stats rollup failed:', e.message); }
+    // Sheet push (non-fatal by design — mail must never break over reporting).
+    try { await pushSheet(stats, snap.size); }
+    catch (e) { console.warn('sheet push failed:', e.message); }
     let sent = 0;
     for (const doc of snap.docs) {
         const u = doc.data();
