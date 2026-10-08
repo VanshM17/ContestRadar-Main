@@ -648,6 +648,7 @@ html[data-theme="light"] .stat-val.down, html[data-theme="light"] .tbl td.neg { 
 html[data-theme="light"] .chart-tip .pos { color: #16a34a; }
 html[data-theme="light"] .chart-tip .neg { color: #dc2626; }
 html[data-theme="light"] .toggle { background: rgba(15, 23, 42, 0.12); }
+html[data-theme="light"] input:checked + .toggle { background: var(--ac); }
 html[data-theme="light"] .brand-tag { border-color: rgba(15,23,42,.2); }
 html[data-theme="light"] select option { background: #ffffff; color: #0f172a; }
 html[data-theme="light"] .hamburger { border-color: rgba(15,23,42,.2); }
