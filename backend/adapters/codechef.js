@@ -14,9 +14,20 @@ export class CodeChefAdapter extends PlatformAdapter {
   }
 
   async fetchContests() {
-    // CodeChef upcoming contests are not reliably exposed by the Worker.
-    // Degrade gracefully; upcoming CodeChef contests come via CompeteAPI mirror elsewhere.
-    return [];
+    // CodeChef upcoming contests via CompeteAPI mirror (community-run).
+    const res = await fetch('https://competeapi.vercel.app/contests/upcoming/', { signal: AbortSignal.timeout(15000) });
+    if (!res.ok) throw new Error('CompeteAPI unreachable');
+    const data = await res.json();
+    const now = Date.now();
+    return data
+      .filter(c => c.site === 'codechef')
+      .map(c => this.normalize({
+        name: c.title,
+        start_time: c.startTime,
+        end_time: c.endTime,
+        url: c.url,
+        is_live: c.startTime <= now && now < c.endTime
+      }));
   }
 
   async fetchRating(handle) {

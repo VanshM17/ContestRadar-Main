@@ -12,10 +12,20 @@ export class LeetCodeAdapter extends PlatformAdapter {
   }
 
   async fetchContests() {
-    // LeetCode doesn't expose a public upcoming-contests API reliably.
-    // Return [] so the UI degrades gracefully; contests still appear via CompeteAPI mirror
-    // in the frontend fallback if needed. Keep this adapter focused on ratings.
-    return [];
+    // LeetCode + CodeChef upcoming contests via CompeteAPI mirror (community-run).
+    const res = await fetch('https://competeapi.vercel.app/contests/upcoming/', { signal: AbortSignal.timeout(15000) });
+    if (!res.ok) throw new Error('CompeteAPI unreachable');
+    const data = await res.json();
+    const now = Date.now();
+    return data
+      .filter(c => c.site === 'leetcode')
+      .map(c => this.normalize({
+        name: c.title,
+        start_time: c.startTime,
+        end_time: c.endTime,
+        url: c.url,
+        is_live: c.startTime <= now && now < c.endTime
+      }));
   }
 
   async fetchRating(username) {
