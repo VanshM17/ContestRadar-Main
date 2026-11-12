@@ -219,6 +219,14 @@ function escapeHtml(str) {
     return String(str || '').replace(/[&<>'"]/g,
         tag => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[tag] || tag));
 }
+function shadeHex(hex, f) {
+    const m = /^#?([0-9a-f]{6})$/i.exec(hex || '');
+    if (!m) return hex;
+    const n = parseInt(m[1], 16);
+    const ch = v => Math.round(Math.min(255, Math.max(0, v * f)));
+    return `rgb(${ch((n >> 16) & 255)},${ch((n >> 8) & 255)},${ch(n & 255)})`;
+}
+
 function fmtDate(ms) {
     return new Date(ms).toLocaleString('en-US', { weekday: 'short', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
 }
@@ -933,13 +941,6 @@ function renderAnalytics() {
         $('st-tier-sub').textContent = `among rated ${site} users`;
     }
 
-    function shadeHex(hex, f) {
-    const m = /^#?([0-9a-f]{6})$/i.exec(hex || '');
-    if (!m) return hex;
-    const n = parseInt(m[1], 16);
-    const ch = v => Math.round(Math.min(255, Math.max(0, v * f)));
-    return `rgb(${ch((n >> 16) & 255)},${ch((n >> 8) & 255)},${ch(n & 255)})`;
-}
 // Paints ONLY the CURRENT stat number in the user's rank color.
 function paintCurrentRating(cur, data) {
     const el = $('st-current');
