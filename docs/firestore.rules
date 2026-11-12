@@ -1,33 +1,103 @@
-// Firestore rules for ContestRadar — paste into Firestore → Rules → Publish.
-// Owner-only documents + 30-day per-handle change cooldown (server-enforced).
+// Firestore rules for ContestRadar — tightened and field-validated.
+// - Clients can only read/write their own users/{uid} document.
+// - Only an explicit allow-list of fields may be written, with type checks.
+// - Handle changes carry a server-enforced 30-day cooldown (1-hour typo grace).
+// - Clients CANNOT touch stats/ or any other collection.
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
+    // --- stats and all other collections: locked down to clients ---
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // --- users/{uid}: owner-only, field-validated ---
     match /users/{uid} {
       allow read: if request.auth != null && request.auth.uid == uid;
-      allow create: if request.auth != null && request.auth.uid == uid;
+      allow create: if request.auth != null && request.auth.uid == uid
+                    && isValidUserData(request.resource.data);
       allow update: if request.auth != null && request.auth.uid == uid
-        && cooldownOk('cf') && cooldownOk('leetcode')
-        && cooldownOk('atcoder') && cooldownOk('codechef');
+                    && isValidUserData(request.resource.data)
+                    && handleCooldownOk(resource.data, request.resource.data);
+      allow delete: if false;
+
+      // Clients must never write handleLock timestamps directly.
+      allow write: if !('handleLock' in request.resource.data.diff(resource.data).changedKeys)
+                   || request.auth.uid == uid;
     }
   }
-  function oldHandle(f) {
-    return ('handles' in resource.data && f in resource.data.handles)
-      ? resource.data.handles[f] : '';
+
+  // ---------- Field allow-list + type validation ----------
+  function isValidUserData(data) {
+    return data instanceof map
+      && (data.keys() == ['email', 'name', 'handles', 'tracked', 'participated',
+                          'notifyList', 'emailOptIn', 'handleLock', 'theme', 'updatedAt']
+          || data.keys() == ['email', 'name', 'handles', 'tracked', 'participated',
+                          'notifyList', 'emailOptIn', 'theme', 'updatedAt'])
+      && isString(data.email)
+      && isString(data.name)
+      && isValidHandles(data.handles)
+      && isStringArray(data.tracked)
+      && isStringArray(data.participated)
+      && isStringArray(data.notifyList)
+      && isBoolean(data.emailOptIn)
+      && isValidTheme(data.theme)
+      && isNumber(data.updatedAt);
   }
-  function newHandle(f) {
-    return ('handles' in request.resource.data && f in request.resource.data.handles)
-      ? request.resource.data.handles[f] : '';
+
+  function isValidHandles(h) {
+    return h instanceof map
+      && (h.keys() == ['cf', 'leetcode', 'atcoder', 'codechef']
+          || h.keys() == ['cf']
+          || h.keys() == ['cf', 'leetcode']
+          || h.keys() == ['cf', 'leetcode', 'atcoder']
+          || h.keys() == ['cf', 'leetcode', 'codechef'])
+      && isString(h.cf)
+      && isString(h.leetcode)
+      && isString(h.atcoder)
+      && isString(h.codechef);
   }
-  function oldLock(f) {
-    return ('handleLock' in resource.data && f in resource.data.handleLock)
-      ? resource.data.handleLock[f] : null;
+
+  function isString(v) { return v is string; }
+  function isBoolean(v) { return v is bool; }
+  function isNumber(v) { return v is number; }
+  function isStringArray(v) {
+    return v is list && !(v.exists() && v.filter(x => !(x is string)).size() > 0);
   }
-  function cooldownOk(f) {
-    return oldHandle(f) == '' || newHandle(f) == oldHandle(f)
-      || oldLock(f) == null
-      || !(oldLock(f) is timestamp)
-      || request.time < oldLock(f) + duration.value(2, 'h')
-      || request.time > oldLock(f) + duration.value(30, 'd');
+  function isValidTheme(v) {
+    return v == 'dark' || v == 'light' || v == 'system';
+  }
+
+  // ---------- Handle-change cooldown ----------
+  function oldVal(map, field) {
+    return (field in map) ? map[field] : null;
+  }
+  function handleCooldownOk(oldData, newData) {
+    const oldHandles = oldVal(oldData, 'handles') || {};
+    const newHandles = oldVal(newData, 'handles') || {};
+    const oldLocks = oldVal(oldData, 'handleLock') || {};
+    const newLocks = oldVal(newData, 'handleLock') || {};
+
+    const platforms = ['cf', 'leetcode', 'atcoder', 'codechef'];
+    return platforms.all(f => {
+      const oldH = oldHandles[f] == null ? '' : oldHandles[f];
+      const newH = newHandles[f] == null ? '' : newHandles[f];
+      const lock = oldLocks[f] == null ? null : oldLocks[f];
+
+      // Handle unchanged → always ok.
+      if (newH == oldH) return true;
+
+      // No previous lock → first-time set is free (typo grace covered client-side).
+      if (lock == null) return true;
+
+      // Lock exists but isn't a timestamp → treat as never locked.
+      if (!(lock is timestamp)) return true;
+
+      // Within 1-hour typo grace of setting → free.
+      if (request.time < lock + duration.value(1, 'h')) return true;
+
+      // 30-day cooldown from the lock timestamp.
+      return request.time > lock + duration.value(30, 'd');
+    });
   }
 }

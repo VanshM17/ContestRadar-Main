@@ -8,6 +8,33 @@ const SITE_COLORS = {
 const SITE_HEX = { 'Codeforces': '#4d8dfd', 'LeetCode': '#f59e0b', 'AtCoder': '#22c55e', 'CodeChef': '#a855f7' };
 const LS_KEY = 'contestradar.v1';
 
+// ---------- API config ----------
+// Backend API URL. Relative path works when frontend + API share a domain;
+// set API_BASE env or override via localStorage key 'api_base' for custom deployments.
+const API_BASE = (() => {
+  try {
+    const stored = localStorage.getItem('api_base');
+    if (stored) return stored.replace(/\/$/, '');
+  } catch {}
+  return '';
+})();
+
+// Backend fetch helper with timeout and graceful error return.
+async function apiFetch(path, { timeoutMs = 20000 } = {}) {
+  const url = API_BASE ? `${API_BASE}${path}` : path;
+  const ctrl = new AbortController();
+  const t = setTimeout(() => ctrl.abort(), timeoutMs);
+  try {
+    const res = await fetch(url, { signal: ctrl.signal });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    return await res.json();
+  } catch (err) {
+    throw err;
+  } finally {
+    clearTimeout(t);
+  }
+}
+
 // ---------- Tiny store ----------
 const Store = {
     load() {
@@ -234,6 +261,11 @@ function safeUrl(u) {
 // ORIGINAL: rating + eligibility (kept, only hardened)
 // ============================================================================
 async function getUserRating(handle) {
+    // Try backend ratings API first, then fall back to direct Codeforces API.
+    try {
+        const data = await apiFetch(`/api/ratings/Codeforces/${encodeURIComponent(handle)}`);
+        if (data.ok && typeof data.current === 'number') return data.current;
+    } catch { /* fall through to direct */ }
     try {
         const data = await fetchJSON(`https://codeforces.com/api/user.info?handles=${encodeURIComponent(handle)}`);
         if (data.status === 'OK' && data.result.length > 0) return data.result[0].rating || 0;
@@ -431,6 +463,11 @@ async function fetchCodeChefData(handle) {
     };
 }
 async function fetchCurrentRating(site, handle) {
+    // Backend first, then per-platform direct fetch as fallback.
+    try {
+        const data = await apiFetch(`/api/ratings/${encodeURIComponent(site)}/${encodeURIComponent(handle)}`);
+        if (data.ok && typeof data.current === 'number') return data.current;
+    } catch { /* fall through to direct */ }
     if (site === 'Codeforces') return getUserRating(handle);
     if (site === 'LeetCode') return (await fetchLeetCodeHistory(handle)).current;
     if (site === 'AtCoder') return (await fetchAtCoderHistoryData(handle)).current;
@@ -1396,7 +1433,39 @@ async function fetchAllContests() {
     const listElement = $('contest-list');
     const u = user();
     const handle = (u && u.cf) || '';
-    const userRating = handle ? await getUserRating(handle).catch(() => 0) : 0;
+    let userRating = 0;
+    let CF_USER = null;
+
+    // Try backend first; fall back to per-user direct fetches if it's down.
+    try {
+        const data = await apiFetch('/api/contests');
+        ALL_CONTESTS = (data.contests || []).map(c => ({
+            site: c.site, name: c.name,
+            start_time: c.start_time, end_time: c.end_time,
+            is_live: c.is_live, url: c.url
+        }));
+        Store.set('cache_all', { at: Date.now(), data: ALL_CONTESTS });
+        $('sync-label').textContent = `Live · synced ${new Date().toLocaleTimeString()}`;
+        renderContests(); renderTracked(); refreshAuthUI();
+
+        // Seed platform ratings from backend so rating lines show without extra calls.
+        if (handle) {
+            try {
+                const ratings = await apiFetch(`/api/ratings?platform=Codeforces&handle=${encodeURIComponent(handle)}`);
+                if (ratings.ratings && ratings.ratings.Codeforces && ratings.ratings.Codeforces.ok) {
+                    userRating = ratings.ratings.Codeforces.current || 0;
+                    PLATFORM_RATINGS.Codeforces = userRating;
+                }
+            } catch { /* ratings optional */ }
+        }
+        return;
+    } catch (err) {
+        console.warn('Backend contests API down, falling back to direct fetches:', err.message);
+        toast('Backend offline', 'Using cached data and direct platform feeds.');
+    }
+
+    // ---------- Fallback: original direct-to-platform flow ----------
+    try { userRating = handle ? await getUserRating(handle).catch(() => 0) : 0; } catch { userRating = 0; }
     try { CF_USER = handle ? await fetchCFProfile(handle).catch(() => null) : null; } catch { CF_USER = null; }
 
     const [cfContests, lcCcContests, atContests] = await Promise.all([
@@ -1413,11 +1482,55 @@ async function fetchAllContests() {
     updateRatingLines();
 }
 async function syncPlatform(platform) {
-    // Syncs ONE platform's history + rating cache. Throws on failure.
-    // Returns a short status string for summary toasts.
+    // Syncs ONE platform's history + rating cache via the backend API.
+    // Falls back to direct platform fetch if the backend is unavailable.
     const site = ANALYTICS_SITES[platform];
     const handle = handleForSite(site);
     if (!handle) throw new Error(`no ${site} handle`);
+
+    // ---------- Backend path ----------
+    try {
+        const data = await apiFetch(`/api/ratings/${encodeURIComponent(platform)}/${encodeURIComponent(handle)}`);
+        if (platform === 'codeforces') {
+            CF_HISTORY = (data.points || []).map(p => ({
+                contestId: p.contestId || null,
+                contestName: p.name,
+                rank: p.rank,
+                oldRating: p.rating - (p.delta || 0),
+                newRating: p.rating,
+                delta: p.delta,
+                time: p.t
+            }));
+            CF_USER = { handle, rating: data.current, maxRating: data.meta?.maxRating };
+            Store.set('cf_history', { at: Date.now(), handle, data: CF_HISTORY });
+            Store.set('cf_user', { at: Date.now(), data: CF_USER });
+            if (data.current != null) { PLATFORM_RATINGS.Codeforces = data.current; storeCachedRating('Codeforces', handle, data.current); }
+            return `${site} (${CF_HISTORY.length} contests)`;
+        }
+        if (platform === 'leetcode') {
+            LC_DATA = { points: data.points || [], current: data.current, meta: data.meta || {} };
+            Store.set('lc_history', { at: Date.now(), handle, data: LC_DATA });
+            PLATFORM_RATINGS.LeetCode = data.current; storeCachedRating('LeetCode', handle, data.current);
+            return `${site} (${LC_DATA.points.length} contests)`;
+        }
+        if (platform === 'atcoder') {
+            AC_DATA = { points: data.points || [], current: data.current, meta: data.meta || {} };
+            Store.set('ac_history', { at: Date.now(), handle, data: AC_DATA });
+            PLATFORM_RATINGS.AtCoder = data.current; storeCachedRating('AtCoder', handle, data.current);
+            return `${site} (${AC_DATA.points.length} contests)`;
+        }
+        if (platform === 'codechef') {
+            CC_DATA = { points: data.points || [], current: data.current, meta: data.meta || {} };
+            Store.set('cc_history', { at: Date.now(), handle, data: CC_DATA });
+            PLATFORM_RATINGS.CodeChef = data.current; storeCachedRating('CodeChef', handle, data.current);
+            return `${site} (rating ${data.current})`;
+        }
+        throw new Error('unknown platform');
+    } catch (err) {
+        console.warn(`Backend ratings API down for ${site}, falling back to direct fetch:`, err.message);
+    }
+
+    // ---------- Fallback: original direct-to-platform flow ----------
     if (platform === 'codeforces') {
         CF_USER = await fetchCFProfile(handle);
         CF_HISTORY = await fetchCFHistory(handle);
