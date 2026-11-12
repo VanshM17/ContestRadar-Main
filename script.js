@@ -11,7 +11,7 @@ const LS_KEY = 'contestradar.v1';
 // ---------- API config ----------
 // Backend API URL. Relative path works when frontend + API share a domain;
 // set API_BASE env or override via localStorage key 'api_base' for custom deployments.
-const API_BASE = 'https://contestradar-api.onrender.com';
+const API_BASE = 'https://contestradar-main.onrender.com';
 
 // Backend fetch helper with timeout and graceful error return.
 async function apiFetch(path, { timeoutMs = 20000 } = {}) {
